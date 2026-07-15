@@ -1,5 +1,5 @@
 name: Feature Request
-description: Suggest a new feature or improvement
+description: Suggest a maintenance improvement for Pointbreak Debug
 title: "[Feature]: "
 labels: ["enhancement"]
 body:
@@ -63,7 +63,7 @@ body:
     attributes:
       label: How important is this to you?
       options:
-        - Critical - I can't use Pointbreak without this
+        - Critical - I can't use Pointbreak Debug without this
         - High - This would significantly improve my workflow
         - Medium - Nice to have
         - Low - Just an idea
@@ -77,7 +77,7 @@ body:
       description: What type of feature is this?
       options:
         - Debugging functionality (new debugging capabilities)
-        - AI interaction (how AI uses Pointbreak)
+        - AI interaction (how AI uses Pointbreak Debug)
         - Performance improvement
         - Developer experience
         - Documentation

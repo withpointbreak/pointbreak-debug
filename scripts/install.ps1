@@ -1,10 +1,14 @@
-# Pointbreak Installation Script for Windows
+# Pointbreak Debug CLI Installation Script for Windows
 #
 # Usage:
-#   irm https://raw.githubusercontent.com/withpointbreak/pointbreak/main/scripts/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/withpointbreak/pointbreak-debug/main/scripts/install.ps1 | iex
 #
 # Or with parameters:
-#   $version = "v0.2.0"; irm https://raw.githubusercontent.com/withpointbreak/pointbreak/main/scripts/install.ps1 | iex
+#   $version = "0.4.1"; irm https://raw.githubusercontent.com/withpointbreak/pointbreak-debug/main/scripts/install.ps1 | iex
+#
+# Prefer the stable entry point: https://withpointbreak.com/install.ps1
+# Raw URLs under the old repository slug are unsupported after slug reuse.
+# Downloads from: https://download.withpointbreak.com/cli/
 
 param(
     [string]$Version = "latest",
@@ -14,8 +18,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Repository configuration
-$Repo = "withpointbreak/pointbreak"
+# Configuration
+$RepositoryUrl = "https://github.com/withpointbreak/pointbreak-debug"
+$DownloadBaseUrl = "https://download.withpointbreak.com"
 
 # Colors
 function Write-ColorOutput {
@@ -49,7 +54,7 @@ function Write-Info {
 # Print header
 Write-Host ""
 Write-ColorOutput "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Blue
-Write-ColorOutput "  Pointbreak Installer" -ForegroundColor Blue
+Write-ColorOutput "  Pointbreak Debug Installer" -ForegroundColor Blue
 Write-ColorOutput "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Blue
 Write-Host ""
 
@@ -80,36 +85,48 @@ function Get-DownloadUrl {
     param([string]$Platform)
 
     if ($Version -eq "latest") {
-        Write-Info "Fetching latest release..."
-        $apiUrl = "https://api.github.com/repos/$Repo/releases/latest"
+        Write-Info "Fetching latest Debug CLI version..."
+
+        try {
+            $listing = Invoke-WebRequest -Uri "$DownloadBaseUrl/cli/latest/" -UseBasicParsing -ErrorAction Stop
+            $listingContent = $listing.Content
+
+            if ($listingContent -match 'pointbreak-v(\d+\.\d+\.\d+)') {
+                $versionClean = $matches[1]
+                Write-Info "Using latest version: v$versionClean"
+                $versionPath = "latest"
+                $archiveName = "pointbreak-v$versionClean-$Platform.zip"
+            }
+            else {
+                Write-Warning "Could not detect latest version"
+                Write-Info "Falling back to the version-less filename..."
+                $versionPath = "latest"
+                $archiveName = "pointbreak-$Platform.zip"
+            }
+        }
+        catch {
+            Write-Warning "Could not fetch version info: $_"
+            Write-Info "Falling back to the version-less filename..."
+            $versionPath = "latest"
+            $archiveName = "pointbreak-$Platform.zip"
+        }
     }
     else {
         Write-Info "Using version: $Version"
-        $apiUrl = "https://api.github.com/repos/$Repo/releases/tags/$Version"
+        $versionClean = $Version -replace '^v', ''
+        $versionPath = "v$versionClean"
+        $archiveName = "pointbreak-v$versionClean-$Platform.zip"
     }
 
-    try {
-        $release = Invoke-RestMethod -Uri $apiUrl -Method Get
-    }
-    catch {
-        Write-Error "Could not fetch release information"
-        if ($Version -ne "latest") {
-            Write-Info "Version $Version not found. Check: https://github.com/$Repo/releases"
-        }
-        exit 1
-    }
+    Write-Success "Download path: cli/$versionPath"
 
-    $releaseTag = $release.tag_name
-    Write-Success "Found version: $releaseTag"
-
-    $binaryName = "pointbreak-$Platform.exe"
-    $binaryUrl = "https://github.com/$Repo/releases/download/$releaseTag/$binaryName"
-    $checksumsUrl = "https://github.com/$Repo/releases/download/$releaseTag/checksums.txt"
+    $archiveUrl = "$DownloadBaseUrl/cli/$versionPath/$archiveName"
+    $checksumsUrl = "$DownloadBaseUrl/cli/$versionPath/checksums.txt"
 
     return @{
-        ReleaseTag   = $releaseTag
-        BinaryName   = $binaryName
-        BinaryUrl    = $binaryUrl
+        VersionPath  = $versionPath
+        ArchiveName  = $archiveName
+        ArchiveUrl   = $archiveUrl
         ChecksumsUrl = $checksumsUrl
     }
 }
@@ -122,21 +139,20 @@ function Install-Binary {
     )
 
     $tempDir = New-Item -ItemType Directory -Path "$env:TEMP\pointbreak-install-$(New-Guid)"
-    $binaryPath = Join-Path $tempDir $DownloadInfo.BinaryName
+    $archivePath = Join-Path $tempDir $DownloadInfo.ArchiveName
 
     try {
         Write-Host ""
-        Write-Info "Downloading binary..."
+        Write-Info "Downloading archive..."
 
-        # Download binary
-        Invoke-WebRequest -Uri $DownloadInfo.BinaryUrl -OutFile $binaryPath
+        Invoke-WebRequest -Uri $DownloadInfo.ArchiveUrl -OutFile $archivePath
 
-        if (-not (Test-Path $binaryPath)) {
+        if (-not (Test-Path $archivePath)) {
             Write-Error "Download failed"
             exit 1
         }
 
-        $fileSize = (Get-Item $binaryPath).Length
+        $fileSize = (Get-Item $archivePath).Length
         $fileSizeMB = [math]::Round($fileSize / 1MB, 2)
         Write-Success "Downloaded: $fileSizeMB MB"
 
@@ -150,7 +166,7 @@ function Install-Binary {
                 Invoke-WebRequest -Uri $DownloadInfo.ChecksumsUrl -OutFile $checksumsPath
 
                 $checksums = Get-Content $checksumsPath
-                $expectedLine = $checksums | Where-Object { $_ -match $DownloadInfo.BinaryName }
+                $expectedLine = $checksums | Where-Object { $_ -match $DownloadInfo.ArchiveName }
 
                 if ($expectedLine) {
                     $expectedChecksum = $expectedLine.Split()[0]
@@ -161,7 +177,7 @@ function Install-Binary {
                         Write-Info "Skipping checksum verification"
                     }
                     else {
-                        $actualHash = Get-FileHash -Path $binaryPath -Algorithm SHA256
+                        $actualHash = Get-FileHash -Path $archivePath -Algorithm SHA256
                         $actualChecksum = $actualHash.Hash.ToLower()
 
                         if ($actualChecksum -eq $expectedChecksum) {
@@ -185,6 +201,20 @@ function Install-Binary {
                 Write-Info "Continuing anyway..."
             }
         }
+
+        Write-Host ""
+        Write-Info "Extracting archive..."
+
+        $extractDir = Join-Path $tempDir "extracted"
+        Expand-Archive -Path $archivePath -DestinationPath $extractDir -Force
+        $binaryPath = Join-Path $extractDir "pointbreak.exe"
+
+        if (-not (Test-Path $binaryPath)) {
+            Write-Error "Binary not found in archive"
+            exit 1
+        }
+
+        Write-Success "Extracted successfully"
 
         # Install binary
         Write-Host ""
@@ -296,9 +326,9 @@ function Show-NextSteps {
     Write-Host "  pointbreak --version" -ForegroundColor Cyan
     Write-Host ""
     Write-Info "Next steps:"
-    Write-Host "  1. Install the VS Code extension (if not already installed)" -ForegroundColor White
-    Write-Host "  2. Configure your AI assistant to use Pointbreak MCP server" -ForegroundColor White
-    Write-Host "  3. See setup guides: https://github.com/$Repo/tree/main/docs" -ForegroundColor Cyan
+    Write-Host "  1. Install the final Pointbreak Debug VS Code extension (v0.2.5)" -ForegroundColor White
+    Write-Host "  2. Configure your AI assistant to use the Pointbreak Debug MCP server" -ForegroundColor White
+    Write-Host "  3. Support: $RepositoryUrl/issues" -ForegroundColor Cyan
     Write-Host ""
 }
 

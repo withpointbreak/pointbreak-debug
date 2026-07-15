@@ -1,170 +1,62 @@
-# Pointbreak 🌊
+# Pointbreak Debug
 
-**AI assistants can write code. Now they can debug it too.**
+> [!IMPORTANT]
+> This repository is the home of the legacy Pointbreak Debug product. VS Code extension `0.2.5`
+> is its final release. The next Pointbreak extension is an incompatible, Review-focused product;
+> this repository is not the canonical open-source repository for that new product.
 
-> **Note:** This is the public documentation and issue tracking repository for Pointbreak. The source code is not publicly available at this time. For documentation, downloads, and support, you're in the right place!
+Pointbreak Debug gives AI assistants access to an IDE's native debugger through the Model Context
+Protocol. It can set breakpoints, step through execution, and inspect variables from tools such as
+Claude Code, Codex, Cursor, and GitHub Copilot.
 
-Pointbreak enables AI assistants to control VS Code debuggers through natural language. Set breakpoints, step through code, and inspect variables—all through AI.
+## Product status
 
-Your AI assistant can now:
+- The VS Code extension remains available under the existing `pointbreak.pointbreak` Marketplace
+  identity, with `0.2.5` as the final Pointbreak Debug release.
+- Historical Debug binaries and installer sources remain available, but no new Debug architecture
+  is planned.
+- New Pointbreak development is separate and incompatible with the Debug extension, bridge, and MCP
+  debugging features described here.
 
-- 🎯 **Set breakpoints** through natural language ("break on line 42")
-- 🔍 **Inspect variables** while your code runs ("show me user_input")
-- 🪜 **Step through execution** ("step into this function")
-- 🐛 **Find bugs** by actually running and examining your code
+## Install the final Debug release
 
-Works with GitHub Copilot, Cursor, Claude Code, Codex, and other MCP-compatible AI assistants.
+Install the VS Code extension from the
+[Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=pointbreak.pointbreak).
 
-## Quick Start
+For AI assistants that need the standalone Debug CLI, use the stable installer URLs:
 
-### For GitHub Copilot / Cursor Users
+```bash
+# macOS / Linux
+curl -fsSL https://withpointbreak.com/install.sh | sh
 
-1. **Install** the Pointbreak extension
-
-   - Search "Pointbreak" in Extensions (publisher: `pointbreak`)
-   - [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=pointbreak.pointbreak)
-
-2. **Ask** your AI assistant to debug your code
-   ```
-   "Set a breakpoint on main.rs line 42 and start debugging"
-   ```
-
-That's it. The MCP server auto-registers with your built-in AI agent.
-
-### For Other AI Assistants (Claude Code, Codex, Windsurf, etc.)
-
-1. **Install** the Pointbreak extension (same as above)
-
-2. **Install** the MCP server on your system:
-
-   ```bash
-   # macOS / Linux
-   curl -fsSL https://raw.githubusercontent.com/withpointbreak/pointbreak/main/scripts/install.sh | sh
-
-   # Windows (PowerShell)
-   irm https://raw.githubusercontent.com/withpointbreak/pointbreak/main/scripts/install.ps1 | iex
-   ```
-
-3. **Configure** your AI assistant's MCP settings
-   - See [AI Assistants Guide](https://docs.withpointbreak.com/ai-assistants)
-
-## Downloads
-
-### VS Code Extension (Recommended)
-
-Install directly from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=pointbreak.pointbreak).
-
-Works in: VS Code, Cursor, Windsurf, VS Codium, and other VS Code-compatible editors.
-
-### Platform-Specific Extensions
-
-Download manual VSIX packages from [GitHub Releases](https://github.com/withpointbreak/pointbreak/releases):
-
-| Platform              | Download                         |
-| --------------------- | -------------------------------- |
-| macOS (Apple Silicon) | `pointbreak-darwin-arm64-*.vsix` |
-| macOS (Intel)         | `pointbreak-darwin-x64-*.vsix`   |
-| Linux x64             | `pointbreak-linux-x64-*.vsix`    |
-| Linux ARM64           | `pointbreak-linux-arm64-*.vsix`  |
-| Windows x64           | `pointbreak-win32-x64-*.vsix`    |
-| Windows ARM64         | `pointbreak-win32-arm64-*.vsix`  |
-
-Install: `code --install-extension pointbreak-*.vsix`
-
-### Standalone Binaries
-
-For advanced users, standalone MCP server binaries are available from [GitHub Releases](https://github.com/withpointbreak/pointbreak/releases).
-
-## Documentation
-
-📚 **[Full documentation at docs.withpointbreak.com](https://docs.withpointbreak.com)**
-
-- [Getting Started](https://docs.withpointbreak.com/quickstart) - Complete your first debugging session in 5 minutes
-- [Installation](https://docs.withpointbreak.com/installation) - Detailed installation instructions for all platforms
-- [AI Assistants](https://docs.withpointbreak.com/ai-assistants) - Setup guides for Claude Code, Cursor, Codex, and more
-- [Usage Guide](https://docs.withpointbreak.com/usage) - Examples and common debugging workflows
-- [Troubleshooting](https://docs.withpointbreak.com/troubleshooting) - Common issues and solutions
-- [Architecture](https://docs.withpointbreak.com/architecture) - How Pointbreak works
-- [FAQ](https://docs.withpointbreak.com/faq) - Frequently asked questions
-
-## Supported Platforms
-
-**Languages** (anything your IDE can debug):
-
-- Python (via debugpy)
-- JavaScript, TypeScript (via Node Debug / VS Code JS Debug)
-- Rust, C, C++ (via CodeLLDB)
-- Go (via Delve)
-- Any language with a Debug Adapter Protocol implementation
-
-**AI Assistants** (MCP-compatible):
-
-- GitHub Copilot (VS Code built-in)
-- Cursor (built-in agent)
-- Claude Code
-- Codex
-- Any tool supporting Model Context Protocol
-
-**Operating Systems:**
-
-- macOS (x64 + ARM64)
-- Linux (x64 + ARM64)
-- Windows (x64 + ARM64)
-
-## Example
-
-```
-User: "Debug this test and tell me why user_input is empty"
-
-AI: Setting breakpoint at line 15... Starting debugger...
-    [Breakpoint appears in VS Code]
-    [Debug session starts]
-    [Code pauses at breakpoint]
-
-    Found it! You're reading user_input before prompting the user.
-    The input happens on line 18, but you're using it on line 15.
-    Move the prompt above the read.
+# Windows (PowerShell)
+irm https://withpointbreak.com/install.ps1 | iex
 ```
 
-## How It Works
+The installer source is retained in this repository:
 
-Pointbreak bridges AI assistants to your IDE's **native debugger**:
+- [macOS/Linux installer](https://github.com/withpointbreak/pointbreak-debug/blob/main/scripts/install.sh)
+- [Windows installer](https://github.com/withpointbreak/pointbreak-debug/blob/main/scripts/install.ps1)
 
-```
-┌─────────────┐      MCP          ┌──────────────┐      IDE Extension      ┌─────────────┐
-│     AI      │  ─── Protocol ──► │  Pointbreak  │  ─────────────────────► │     IDE     │
-│  Assistant  │                   │ MCP Server   │                         │  Debugger   │
-└─────────────┘                   └──────────────┘                         └─────────────┘
-```
+Those scripts download the historical Debug CLI from `download.withpointbreak.com`. This public
+repository does not publish GitHub Releases. Raw URLs under the former unsuffixed repository slug
+are unsupported after that slug is reused; use the stable website URLs above or the explicit Debug
+source URLs.
 
-Instead of building a new debugger, Pointbreak uses your IDE's existing debugger. You get all your installed debug adapters, breakpoint UI, and variable inspection—but now controllable through AI.
+## Support and security
 
-## Contributing
+- [Report a Pointbreak Debug bug](https://github.com/withpointbreak/pointbreak-debug/issues/new?template=bug_report.yml)
+- [Ask a question](https://github.com/withpointbreak/pointbreak-debug/issues/new?template=question.yml)
+- [Join a discussion](https://github.com/withpointbreak/pointbreak-debug/discussions)
+- Read the [security policy](SECURITY.md) before reporting a vulnerability
 
-Pointbreak is free, but it's not currently Open Source Software. At this early stage, your feedback is highly valued in helping shape the future of the project:
-
-- 🐛 **[Bug reports](https://github.com/withpointbreak/pointbreak/issues/new?template=bug_report.yml)** - Help identify and fix issues
-- 💡 **[Feature requests](https://github.com/withpointbreak/pointbreak/issues/new?template=feature_request.yml)** - Share your ideas for improvements
-- 💬 **[Discussions](https://github.com/withpointbreak/pointbreak/discussions)** - Share your use cases and experiences
-- 📝 **Documentation improvements** - Suggest clearer explanations
-
-**Note:** Code contributions are not accepted at this time. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
-## Support
-
-- 🐛 **Issues:** [GitHub Issues](https://github.com/withpointbreak/pointbreak/issues)
-- 💬 **Discussions:** [GitHub Discussions](https://github.com/withpointbreak/pointbreak/discussions)
-- 🌐 **Website:** [withpointbreak.com](https://withpointbreak.com)
-- 🔒 **Security:** See [SECURITY.md](SECURITY.md) for reporting security vulnerabilities
+The legacy hosted Debug documentation is being retired. New Pointbreak documentation will describe
+the new product and will not serve these Debug instructions under the same identity.
 
 ## License
 
-Proprietary License - Copyright (c) 2025 Kevin Swiber. All rights reserved.
+Pointbreak Debug binaries are proprietary software governed by the [Pointbreak Debug EULA](LICENSE).
+This repository's visibility does not grant an open-source license to the historical binaries or
+their private source code.
 
-**Pointbreak is free to use** (free binaries and VS Code Marketplace extension), but the source code is not Open Source. See [LICENSE](LICENSE) for details.
-
-**Glass-box debugging for AI-assisted development. Proof beats prediction.**
-
-Built by [Kevin Swiber](https://github.com/kevinswiber)
-
-Made with ❤️ in Santa Cruz, California
+Copyright (c) 2025 Kevin Swiber. All rights reserved.
