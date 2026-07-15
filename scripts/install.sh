@@ -1,11 +1,14 @@
 #!/bin/sh
-# Pointbreak Installation Script
+# Pointbreak Debug CLI Installation Script
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/withpointbreak/pointbreak/main/scripts/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/withpointbreak/pointbreak-debug/main/scripts/install.sh | sh
+#
+# Prefer the stable entry point: https://withpointbreak.com/install.sh
+# Raw URLs under the old repository slug are unsupported after slug reuse.
 #
 # Options:
-#   --version=VERSION   Install specific version (e.g., --version=v0.2.0)
+#   --version=VERSION   Install specific version (e.g., --version=0.4.1 or --version=v0.4.1)
 #   --prefix=PATH       Install to custom directory (default: ~/.local/bin)
 #   --no-verify         Skip checksum verification (not recommended)
 
@@ -18,8 +21,11 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Downloads from: https://download.withpointbreak.com/cli/
+
 # Configuration
-REPO="withpointbreak/pointbreak"
+REPOSITORY_URL="https://github.com/withpointbreak/pointbreak-debug"
+DOWNLOAD_BASE_URL="https://download.withpointbreak.com"
 INSTALL_DIR="${HOME}/.local/bin"
 VERSION="latest"
 VERIFY_CHECKSUM=true
@@ -48,7 +54,7 @@ for arg in "$@"; do
 done
 
 echo "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo "${BLUE}  Pointbreak Installer${NC}"
+echo "${BLUE}  Pointbreak Debug Installer${NC}"
 echo "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
@@ -82,8 +88,8 @@ detect_platform() {
                 OS_NAME="alpine"
             # Fallback to os-release file
             elif [ -f /etc/os-release ]; then
-                . /etc/os-release
-                if [ "$ID" = "alpine" ]; then
+                OS_ID=$(grep '^ID=' /etc/os-release | cut -d'=' -f2 | tr -d '"')
+                if [ "$OS_ID" = "alpine" ]; then
                     OS_NAME="alpine"
                 else
                     OS_NAME="linux"
@@ -121,37 +127,36 @@ detect_platform() {
 # Get download URL
 get_download_url() {
     if [ "$VERSION" = "latest" ]; then
-        echo "  Fetching latest release..."
-        API_URL="https://api.github.com/repos/${REPO}/releases/latest"
+        echo "  Fetching latest Debug CLI version..."
+
+        if [ "$DOWNLOADER" = "curl" ]; then
+            LISTING=$(curl -fsSL "${DOWNLOAD_BASE_URL}/cli/latest/" 2>/dev/null || echo "")
+        else
+            LISTING=$(wget -qO- "${DOWNLOAD_BASE_URL}/cli/latest/" 2>/dev/null || echo "")
+        fi
+
+        VERSION_CLEAN=$(echo "$LISTING" | grep -o 'pointbreak-v[0-9][0-9.]*' | head -1 | sed 's/pointbreak-v//')
+
+        if [ -n "$VERSION_CLEAN" ]; then
+            echo "  Using latest version: v${VERSION_CLEAN}"
+            VERSION_PATH="latest"
+            ARCHIVE_NAME="pointbreak-v${VERSION_CLEAN}-${PLATFORM}.tar.gz"
+        else
+            echo "${YELLOW}Warning: Could not detect latest version${NC}"
+            echo "Falling back to the version-less filename..."
+            VERSION_PATH="latest"
+            ARCHIVE_NAME="pointbreak-${PLATFORM}.tar.gz"
+        fi
     else
         echo "  Using version: $VERSION"
-        API_URL="https://api.github.com/repos/${REPO}/releases/tags/${VERSION}"
+        VERSION_CLEAN="${VERSION#v}"
+        VERSION_PATH="v${VERSION_CLEAN}"
+        ARCHIVE_NAME="pointbreak-v${VERSION_CLEAN}-${PLATFORM}.tar.gz"
     fi
 
-    # Fetch release info
-    if [ "$DOWNLOADER" = "curl" ]; then
-        RELEASE_JSON=$(curl -fsSL "$API_URL")
-    else
-        RELEASE_JSON=$(wget -qO- "$API_URL")
-    fi
-
-    # Extract version
-    RELEASE_TAG=$(echo "$RELEASE_JSON" | grep -o '"tag_name": *"[^"]*"' | head -1 | sed 's/.*: *"\(.*\)".*/\1/')
-
-    if [ -z "$RELEASE_TAG" ]; then
-        echo "${RED}Error: Could not fetch release information${NC}" >&2
-        if [ "$VERSION" != "latest" ]; then
-            echo "Version $VERSION not found. Check: https://github.com/${REPO}/releases" >&2
-        fi
-        exit 1
-    fi
-
-    echo "${GREEN}✓${NC} Found version: ${BLUE}$RELEASE_TAG${NC}"
-
-    # Construct download URLs
-    BINARY_NAME="pointbreak-${PLATFORM}"
-    BINARY_URL="https://github.com/${REPO}/releases/download/${RELEASE_TAG}/${BINARY_NAME}"
-    CHECKSUMS_URL="https://github.com/${REPO}/releases/download/${RELEASE_TAG}/checksums.txt"
+    ARCHIVE_URL="${DOWNLOAD_BASE_URL}/cli/${VERSION_PATH}/${ARCHIVE_NAME}"
+    CHECKSUMS_URL="${DOWNLOAD_BASE_URL}/cli/${VERSION_PATH}/checksums.txt"
+    echo "${GREEN}✓${NC} Download URL: ${BLUE}${ARCHIVE_URL}${NC}"
 }
 
 # Download file
@@ -172,17 +177,17 @@ download_binary() {
     trap 'rm -rf "$TMP_DIR"' EXIT
 
     echo ""
-    echo "Downloading binary..."
+    echo "Downloading archive..."
 
-    BINARY_PATH="${TMP_DIR}/${BINARY_NAME}"
-    download_file "$BINARY_URL" "$BINARY_PATH"
+    ARCHIVE_PATH="${TMP_DIR}/${ARCHIVE_NAME}"
+    download_file "$ARCHIVE_URL" "$ARCHIVE_PATH"
 
-    if [ ! -f "$BINARY_PATH" ]; then
+    if [ ! -f "$ARCHIVE_PATH" ]; then
         echo "${RED}Error: Download failed${NC}" >&2
         exit 1
     fi
 
-    echo "${GREEN}✓${NC} Downloaded: $(du -h "$BINARY_PATH" | cut -f1)"
+    echo "${GREEN}✓${NC} Downloaded: $(du -h "$ARCHIVE_PATH" | cut -f1)"
 
     # Verify checksum
     if [ "$VERIFY_CHECKSUM" = true ]; then
@@ -196,8 +201,8 @@ download_binary() {
             echo "${YELLOW}Warning: Could not download checksums file${NC}"
             echo "Skipping checksum verification"
         else
-            # Extract checksum for our binary
-            EXPECTED_CHECKSUM=$(grep "$BINARY_NAME" "$CHECKSUMS_PATH" | awk '{print $1}')
+            # Extract checksum for our archive
+            EXPECTED_CHECKSUM=$(grep "$ARCHIVE_NAME" "$CHECKSUMS_PATH" | awk '{print $1}')
 
             if [ -z "$EXPECTED_CHECKSUM" ]; then
                 echo "${YELLOW}Warning: Checksum not found in checksums.txt${NC}" >&2
@@ -208,9 +213,9 @@ download_binary() {
             else
                 # Calculate actual checksum
                 if command -v sha256sum >/dev/null 2>&1; then
-                    ACTUAL_CHECKSUM=$(sha256sum "$BINARY_PATH" | awk '{print $1}')
+                    ACTUAL_CHECKSUM=$(sha256sum "$ARCHIVE_PATH" | awk '{print $1}')
                 elif command -v shasum >/dev/null 2>&1; then
-                    ACTUAL_CHECKSUM=$(shasum -a 256 "$BINARY_PATH" | awk '{print $1}')
+                    ACTUAL_CHECKSUM=$(shasum -a 256 "$ARCHIVE_PATH" | awk '{print $1}')
                 else
                     echo "${YELLOW}Warning: sha256sum/shasum not found${NC}" >&2
                     echo "Skipping checksum verification" >&2
@@ -230,6 +235,22 @@ download_binary() {
             fi
         fi
     fi
+
+    echo ""
+    echo "Extracting archive..."
+
+    if ! tar -xzf "$ARCHIVE_PATH" -C "$TMP_DIR"; then
+        echo "${RED}Error: Failed to extract archive${NC}" >&2
+        exit 1
+    fi
+
+    BINARY_PATH="${TMP_DIR}/pointbreak"
+    if [ ! -f "$BINARY_PATH" ]; then
+        echo "${RED}Error: Binary not found in archive${NC}" >&2
+        exit 1
+    fi
+
+    echo "${GREEN}✓${NC} Extracted successfully"
 
     # Install binary
     echo ""
@@ -293,9 +314,9 @@ print_next_steps() {
     echo "  ${BLUE}pointbreak --version${NC}"
     echo ""
     echo "Next steps:"
-    echo "  1. Install the VS Code extension (if not already installed)"
-    echo "  2. Configure your AI assistant to use Pointbreak MCP server"
-    echo "  3. See setup guides: ${BLUE}https://github.com/${REPO}/tree/main/docs${NC}"
+    echo "  1. Install the final Pointbreak Debug VS Code extension (v0.2.5)"
+    echo "  2. Configure your AI assistant to use the Pointbreak Debug MCP server"
+    echo "  3. Support: ${BLUE}${REPOSITORY_URL}/issues${NC}"
     echo ""
 }
 

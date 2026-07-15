@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report a bug or issue with Pointbreak
+description: Report a bug or issue with Pointbreak Debug
 title: "[Bug]: "
 labels: ["bug"]
 body:
@@ -23,7 +23,7 @@ body:
       label: Steps to Reproduce
       description: How can we reproduce this issue?
       placeholder: |
-        1. Install Pointbreak
+        1. Install Pointbreak Debug
         2. Ask AI to set a breakpoint
         3. See error
     validations:
@@ -73,8 +73,8 @@ body:
   - type: input
     id: extension-version
     attributes:
-      label: Pointbreak Version
-      description: What version of Pointbreak? (Check Extensions panel)
+      label: Pointbreak Debug Version
+      description: What version of Pointbreak Debug? (Check Extensions panel)
       placeholder: "0.1.0"
     validations:
       required: true
